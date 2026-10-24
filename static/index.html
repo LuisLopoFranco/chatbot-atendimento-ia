@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atendimento</title>
+  <style>
+    :root { --cor: #c2410c; --fundo: #f5f5f4; --texto: #1c1917; --bolha: #ffffff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: var(--fundo); color: var(--texto);
+           display: flex; justify-content: center; }
+    .app { width: 100%; max-width: 480px; height: 100dvh; display: flex; flex-direction: column; background: #fafaf9; }
+    header { background: var(--cor); color: #fff; padding: 14px 16px; }
+    header h1 { margin: 0; font-size: 1.05rem; }
+    header small { opacity: .85; }
+    #mensagens { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .msg { max-width: 85%; padding: 10px 12px; border-radius: 14px; line-height: 1.4; white-space: pre-wrap; }
+    .assistant { background: var(--bolha); align-self: flex-start; border-bottom-left-radius: 4px;
+                 box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+    .user { background: var(--cor); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .digitando { opacity: .6; font-style: italic; }
+    form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #e7e5e4; background: #fff; }
+    input { flex: 1; padding: 10px 12px; border: 1px solid #d6d3d1; border-radius: 20px; font-size: 1rem; }
+    button { background: var(--cor); color: #fff; border: 0; border-radius: 20px; padding: 0 18px; font-size: 1rem; cursor: pointer; }
+    button:disabled { opacity: .5; }
+    .sugestoes { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 16px 10px; }
+    .sugestoes button { background: #fff; color: var(--cor); border: 1px solid var(--cor); padding: 6px 10px; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1 id="nome">Atendimento</h1>
+      <small id="modo">conectando...</small>
+    </header>
+    <div id="mensagens">
+      <div class="msg assistant">Olá! Posso ajudar com cardápio, horários, entrega ou montar seu pedido.</div>
+    </div>
+    <div class="sugestoes">
+      <button type="button">Qual o cardápio?</button>
+      <button type="button">Vocês entregam no Centro?</button>
+      <button type="button">Que horas abre hoje?</button>
+    </div>
+    <form id="form">
+      <input id="entrada" placeholder="Digite sua mensagem" autocomplete="off" maxlength="2000">
+      <button id="enviar">Enviar</button>
+    </form>
+  </div>
+  <script>
+    const historico = [];
+    const lista = document.getElementById("mensagens");
+    const entrada = document.getElementById("entrada");
+    const botao = document.getElementById("enviar");
+
+    function adicionar(papel, texto, classeExtra = "") {
+      const div = document.createElement("div");
+      div.className = `msg ${papel} ${classeExtra}`;
+      div.textContent = texto;
+      lista.appendChild(div);
+      lista.scrollTop = lista.scrollHeight;
+      return div;
+    }
+
+    async function enviar(texto) {
+      if (!texto.trim()) return;
+      adicionar("user", texto);
+      historico.push({ role: "user", content: texto });
+      entrada.value = "";
+      botao.disabled = true;
+      const aguarde = adicionar("assistant", "digitando...", "digitando");
+      try {
+        const r = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mensagens: historico }),
+        });
+        const dados = await r.json();
+        if (!r.ok) throw new Error(dados.detail || "Erro no servidor");
+        aguarde.remove();
+        adicionar("assistant", dados.resposta);
+        historico.push({ role: "assistant", content: dados.resposta });
+      } catch (erro) {
+        aguarde.remove();
+        historico.pop();
+        adicionar("assistant", "Ops, não consegui responder agora. " + erro.message);
+      } finally {
+        botao.disabled = false;
+        entrada.focus();
+      }
+    }
+
+    document.getElementById("form").addEventListener("submit", (e) => { e.preventDefault(); enviar(entrada.value); });
+    document.querySelectorAll(".sugestoes button").forEach((b) => b.addEventListener("click", () => enviar(b.textContent)));
+
+    fetch("/api/status").then((r) => r.json()).then((s) => {
+      document.getElementById("nome").textContent = s.negocio;
+      document.title = s.negocio;
+      document.getElementById("modo").textContent =
+        s.modo === "ia" ? "Atendente virtual com IA" : "Modo demonstração (sem chave de API)";
+    });
+  </script>
+</body>
+</html>

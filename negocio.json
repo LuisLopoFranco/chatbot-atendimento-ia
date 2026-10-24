@@ -1,0 +1,34 @@
+{
+  "nome": "Pizzaria Bella Massa",
+  "descricao": "Pizzaria de bairro com massa de fermentação natural, delivery e retirada no balcão.",
+  "endereco": "Rua das Flores, 123 - Centro",
+  "whatsapp": "(11) 90000-0000",
+  "horarios": {
+    "terça a quinta": "18h às 23h",
+    "sexta e sábado": "18h às 0h",
+    "domingo": "18h às 22h30",
+    "segunda": "fechado"
+  },
+  "entrega": {
+    "bairros": ["Centro", "Vila Nova", "Jardim América", "Santa Cruz"],
+    "taxa": "R$ 6,00 (grátis acima de R$ 90,00)",
+    "tempo_medio": "40 a 60 minutos"
+  },
+  "pagamento": ["Pix", "cartão de crédito", "cartão de débito", "dinheiro"],
+  "cardapio": [
+    {"item": "Margherita", "grande": 52.0, "broto": 34.0, "descricao": "molho de tomate, muçarela, manjericão"},
+    {"item": "Calabresa", "grande": 49.0, "broto": 32.0, "descricao": "calabresa, cebola, azeitona"},
+    {"item": "Quatro queijos", "grande": 58.0, "broto": 38.0, "descricao": "muçarela, provolone, parmesão, gorgonzola"},
+    {"item": "Frango com catupiry", "grande": 56.0, "broto": 37.0, "descricao": "frango desfiado, catupiry, milho"},
+    {"item": "Portuguesa", "grande": 57.0, "broto": 37.0, "descricao": "presunto, ovo, cebola, ervilha, azeitona"},
+    {"item": "Vegana de legumes", "grande": 55.0, "broto": 36.0, "descricao": "queijo vegetal, abobrinha, berinjela, pimentão"},
+    {"item": "Chocolate com morango", "grande": 54.0, "broto": 35.0, "descricao": "pizza doce"},
+    {"item": "Refrigerante 2L", "preco": 14.0},
+    {"item": "Suco natural 500ml", "preco": 10.0}
+  ],
+  "observacoes": [
+    "Massa sem glúten disponível por mais R$ 8,00 (preparada em área comum, pode ter traços de glúten).",
+    "Pizza meio a meio cobra o valor do sabor mais caro.",
+    "Pedidos são confirmados pelo WhatsApp."
+  ]
+}
