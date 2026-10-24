@@ -1,6 +1,6 @@
 # Chatbot de atendimento com IA para pequenos negócios
 
-Atendente virtual para o site de um pequeno negócio (o exemplo é uma pizzaria). Ele responde sobre cardápio, horários, entrega e pagamento, e ajuda o cliente a montar o pedido com o valor total. Usa só as informações cadastradas em `negocio.json`, então não inventa preços nem promoções.
+Atendente virtual para o site de um pequeno negócio (o exemplo é uma pizzaria). Ele mostra o cardápio com preços, avisa as promoções do dia, responde sobre horários, entrega e pagamento, e ajuda o cliente a montar o pedido com o valor total. Usa só as informações cadastradas em `negocio.json`, então não inventa preços nem promoções.
 
 ![Prévia do chat](docs/preview.png)
 
@@ -54,7 +54,13 @@ Gemini, Groq e Ollama seguem o formato de API da OpenAI. Para adicionar outro se
 
 ## Adaptar para outro cliente
 
-Edite só o `negocio.json` (nome, endereço, horários, cardápio, regras). O comportamento do atendente está em `montar_instrucoes`, no arquivo `chatbot.py`.
+Edite só o `negocio.json` (nome, endereço, horários, cardápio, promoções, regras). O comportamento do atendente está em `montar_instrucoes`, no arquivo `chatbot.py`.
+
+Cada promoção tem `nome`, `descricao` e `dias`, que aceita os dias da semana (`"terça"`, `"sábado"`...) ou `"todos"`. O bot recebe a data de hoje e só oferece as promoções que valem no dia. Se o cliente perguntar por outra, ele diz em que dia ela vale.
+
+```json
+{"nome": "Margherita em conta", "dias": ["terça", "quarta"], "descricao": "Margherita grande por R$ 39,90."}
+```
 
 ## Estrutura
 

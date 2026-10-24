@@ -26,6 +26,11 @@
     {"item": "Refrigerante 2L", "preco": 14.0},
     {"item": "Suco natural 500ml", "preco": 10.0}
   ],
+  "promocoes": [
+    {"nome": "Combo família", "dias": ["todos"], "descricao": "2 pizzas grandes (Calabresa, Margherita ou Frango com catupiry) + refrigerante 2L por R$ 109,90."},
+    {"nome": "Margherita em conta", "dias": ["terça", "quarta"], "descricao": "Margherita grande por R$ 39,90."},
+    {"nome": "Quinta do broto", "dias": ["quinta"], "descricao": "Na compra de 2 pizzas broto, o suco natural 500ml sai de graça."}
+  ],
   "observacoes": [
     "Massa sem glúten disponível por mais R$ 8,00 (preparada em área comum, pode ter traços de glúten).",
     "Pizza meio a meio cobra o valor do sabor mais caro.",

@@ -5,6 +5,7 @@
 import json
 import os
 import unicodedata
+from datetime import date
 from pathlib import Path
 
 import anthropic
@@ -24,23 +25,44 @@ COMPATIVEIS_OPENAI = {
 MAX_MENSAGENS = 20
 MAX_CARACTERES = 2000
 ARQUIVO_NEGOCIO = Path(__file__).parent / "negocio.json"
+DIAS_DA_SEMANA = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
 
 def carregar_negocio(caminho: Path = ARQUIVO_NEGOCIO) -> dict:
     return json.loads(caminho.read_text(encoding="utf-8"))
 
 
-def montar_instrucoes(negocio: dict) -> str:
+def reais(valor: float) -> str:
+    return f"R$ {valor:.2f}".replace(".", ",")
+
+
+def promocoes_do_dia(negocio: dict, hoje: date) -> list[dict]:
+    """Promoções que valem na data: as do dia da semana e as marcadas com "todos"."""
+    dia = _normalizar(DIAS_DA_SEMANA[hoje.weekday()])
+    return [p for p in negocio.get("promocoes", []) if any(_normalizar(d) in ("todos", dia) for d in p["dias"])]
+
+
+def montar_instrucoes(negocio: dict, hoje: date | None = None) -> str:
+    hoje = hoje or date.today()
+    validas = ", ".join(p["nome"] for p in promocoes_do_dia(negocio, hoje)) or "nenhuma"
     return f"""Você é o atendente virtual da {negocio['nome']}, conversando com clientes pelo site ou WhatsApp.
 
-Responda em português do Brasil, de forma simpática e curta (no máximo 4 frases ou uma lista breve).
-Use somente as informações do negócio abaixo. Se o cliente perguntar algo que não está aqui,
-diga que não tem essa informação e indique o WhatsApp {negocio['whatsapp']}.
+Responda em português do Brasil, de forma simpática e curta (no máximo 4 frases), exceto quando
+listar o cardápio. Use somente as informações do negócio abaixo. Se o cliente perguntar algo que
+não está aqui, diga que não tem essa informação e indique o WhatsApp {negocio['whatsapp']}.
 Nunca invente preços, sabores, prazos ou promoções.
+
+Quando o cliente pedir o cardápio, liste cada pizza com o preço da grande e da broto, e cada bebida
+com o preço. Escreva os valores no formato R$ 52,00.
+
+Hoje é {DIAS_DA_SEMANA[hoje.weekday()]} ({hoje:%d/%m/%Y}). Promoções que valem hoje: {validas}.
+Ofereça só essas, com as condições exatas da lista "promocoes". Se o cliente pedir uma promoção
+de outro dia, diga em que dia ela vale.
 
 Quando o cliente quiser fazer um pedido, ajude a montar: sabores, tamanhos, bebidas, endereço
 (confira se o bairro é atendido) e forma de pagamento. No fim, mostre um resumo com o valor total
-(itens + taxa de entrega, quando houver) e diga que o pedido é confirmado pelo WhatsApp.
+(itens + taxa de entrega, quando houver), aplique a promoção de hoje se o pedido se encaixar nela
+e diga que o pedido é confirmado pelo WhatsApp.
 
 <negocio>
 {json.dumps(negocio, ensure_ascii=False, indent=2)}
@@ -123,10 +145,30 @@ def _normalizar(texto: str) -> str:
     return sem_acento.lower()
 
 
-def responder_demo(negocio: dict, mensagens: list[dict]) -> str:
+def _texto_promocoes(negocio: dict, hoje: date) -> str:
+    todas = negocio.get("promocoes", [])
+    if not todas:
+        return f"No momento não temos promoções. Fique de olho no nosso WhatsApp {negocio['whatsapp']}!"
+    dia = DIAS_DA_SEMANA[hoje.weekday()]
+    validas = promocoes_do_dia(negocio, hoje)
+    if validas:
+        texto = f"Promoções de hoje ({dia}):\n" + "\n".join(f"• {p['nome']}: {p['descricao']}" for p in validas)
+    else:
+        texto = f"Hoje ({dia}) não temos promoção."
+    outras = [p for p in todas if p not in validas]
+    if outras:
+        linhas = [f"• {p['nome']} ({', '.join(p['dias'])}): {p['descricao']}" for p in outras]
+        texto += "\n\nNos outros dias:\n" + "\n".join(linhas)
+    return texto
+
+
+def responder_demo(negocio: dict, mensagens: list[dict], hoje: date | None = None) -> str:
     """Respostas fixas por palavra-chave, para testar o site sem chave de API."""
     pergunta = _normalizar(mensagens[-1]["content"])
+    hoje = hoje or date.today()
 
+    if any(p in pergunta for p in ("promo", "desconto", "oferta", "combo")):
+        return _texto_promocoes(negocio, hoje)
     if any(p in pergunta for p in ("horario", "abre", "fecha", "funciona")):
         linhas = [f"• {dia}: {hora}" for dia, hora in negocio["horarios"].items()]
         return "Nosso horário:\n" + "\n".join(linhas)
@@ -139,17 +181,23 @@ def responder_demo(negocio: dict, mensagens: list[dict]) -> str:
     if any(p in pergunta for p in ("pag", "pix", "cartao", "dinheiro")):
         return "Aceitamos " + ", ".join(negocio["pagamento"]) + "."
     if any(p in pergunta for p in ("cardapio", "sabor", "preco", "quanto", "pizza", "menu")):
-        linhas = [
-            f"• {i['item']}: R$ {i['grande']:.2f} (grande)".replace(".", ",")
+        pizzas = [
+            f"• {i['item']}: " + " / ".join(reais(i[t]) for t in ("grande", "broto") if t in i)
             for i in negocio["cardapio"]
             if "grande" in i
         ]
-        return "Nossos sabores:\n" + "\n".join(linhas)
+        bebidas = [f"• {i['item']}: {reais(i['preco'])}" for i in negocio["cardapio"] if "preco" in i]
+        texto = "Pizzas (grande / broto):\n" + "\n".join(pizzas)
+        if bebidas:
+            texto += "\n\nBebidas:\n" + "\n".join(bebidas)
+        if promocoes_do_dia(negocio, hoje):
+            texto += "\n\nHoje tem promoção! É só perguntar."
+        return texto
     if any(p in pergunta for p in ("onde", "endereco", "fica", "retirada")):
         return f"Estamos na {negocio['endereco']}. Você pode retirar no balcão!"
     return (
         "Estou em modo demonstração e só respondo sobre horário, entrega, pagamento, "
-        f"cardápio e endereço. Para outras dúvidas, chame no WhatsApp {negocio['whatsapp']}."
+        f"cardápio, promoções e endereço. Para outras dúvidas, chame no WhatsApp {negocio['whatsapp']}."
     )
 
 

@@ -1,4 +1,5 @@
 import sys
+from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -11,6 +12,8 @@ import chatbot
 from app import app
 
 NEGOCIO = chatbot.carregar_negocio()
+SEGUNDA = date(2026, 10, 26)
+TERCA = date(2026, 10, 27)
 
 
 @pytest.fixture(autouse=True)
@@ -41,10 +44,30 @@ def test_demo_responde_horario_e_entrega():
     assert "Centro" in entrega and "R$ 6,00" in entrega
 
 
-def test_instrucoes_contem_dados_do_negocio():
-    instrucoes = chatbot.montar_instrucoes(NEGOCIO)
+def test_demo_cardapio_mostra_precos_de_pizzas_e_bebidas():
+    texto = chatbot.responder(NEGOCIO, [{"role": "user", "content": "Qual o cardápio?"}])
+    assert "Margherita: R$ 52,00 / R$ 34,00" in texto
+    assert "Refrigerante 2L: R$ 14,00" in texto
+
+
+def test_promocoes_do_dia():
+    assert [p["nome"] for p in chatbot.promocoes_do_dia(NEGOCIO, TERCA)] == ["Combo família", "Margherita em conta"]
+    assert [p["nome"] for p in chatbot.promocoes_do_dia(NEGOCIO, SEGUNDA)] == ["Combo família"]
+
+
+def test_demo_lista_promocoes_de_hoje_e_dos_outros_dias():
+    texto = chatbot.responder_demo(NEGOCIO, [{"role": "user", "content": "Tem promoção hoje?"}], TERCA)
+    hoje, outros_dias = texto.split("Nos outros dias")
+    assert "Promoções de hoje (terça)" in hoje and "Margherita grande por R$ 39,90" in hoje
+    assert "Quinta do broto (quinta)" in outros_dias
+
+
+def test_instrucoes_contem_dados_do_negocio_e_promocoes_do_dia():
+    instrucoes = chatbot.montar_instrucoes(NEGOCIO, TERCA)
     assert "Pizzaria Bella Massa" in instrucoes
     assert "Quatro queijos" in instrucoes
+    assert "preço da grande e da broto" in instrucoes
+    assert "Hoje é terça (27/10/2026). Promoções que valem hoje: Combo família, Margherita em conta." in instrucoes
 
 
 def test_escolha_do_provedor(monkeypatch):
